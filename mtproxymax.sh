@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.1.3"
+VERSION="1.1.4"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -1290,7 +1290,7 @@ TOML_EOF
     fi
 
     chmod 644 "$tmp"
-    cp "$tmp" "${CONFIG_DIR}/config.toml" && rm -f "$tmp"
+    mv "$tmp" "${CONFIG_DIR}/config.toml"
 }
 
 # Get comma-separated quoted list of enabled labels for config
