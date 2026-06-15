@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.1.7"
+VERSION="1.1.8"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -5431,8 +5431,16 @@ self_update() {
     local _tmp
     _tmp=$(_mktemp) || return 1
 
-    # Try raw CDN first; fall back to GitHub API if CDN returns 404 (stale edge cache)
-    if ! curl -fsSL --max-time 60 --max-filesize 5242880 -o "$_tmp" "$_url" 2>/dev/null; then
+    # If the background SHA check detected a new commit, skip CDN (may serve stale
+    # content with HTTP 200) and go straight to the GitHub API for a fresh copy.
+    # CDN can serve the old version successfully, causing SHA comparison to match the
+    # installed file and falsely clear the update badge while a new version exists.
+    if [ -f "$_UPDATE_BADGE" ]; then
+        log_info "Update detected — fetching via GitHub API (bypassing CDN cache)..."
+        curl -fsSL --max-time 60 --max-filesize 5242880 \
+            -H "Accept: application/vnd.github.raw+json" \
+            -o "$_tmp" "$_api_url" 2>/dev/null || true
+    elif ! curl -fsSL --max-time 60 --max-filesize 5242880 -o "$_tmp" "$_url" 2>/dev/null; then
         log_info "CDN unavailable — trying GitHub API..."
         : > "$_tmp"  # truncate any partial CDN write before API attempt
         curl -fsSL --max-time 60 --max-filesize 5242880 \
