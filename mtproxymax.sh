@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.1.6"
+VERSION="1.1.7"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -2301,12 +2301,11 @@ secret_reenable() {
             # Zero the cumulative traffic for this user
             local _ut="${STATS_DIR}/user_traffic"
             if [ -f "$_ut" ]; then
-                grep -v "^${label}|" "$_ut" > "${_ut}.tmp" 2>/dev/null || true
-                mv "${_ut}.tmp" "$_ut" 2>/dev/null || true
+                { grep -v "^${label}|" "$_ut" > "${_ut}.tmp" 2>/dev/null && mv "${_ut}.tmp" "$_ut" 2>/dev/null || rm -f "${_ut}.tmp"; } 2>/dev/null || true
             fi
             # Clear quota alert tracking
             local _qa="${STATS_DIR}/.quota_alerts_sent"
-            [ -f "$_qa" ] && { grep -v "^${label}|" "$_qa" > "${_qa}.tmp" 2>/dev/null; mv "${_qa}.tmp" "$_qa" 2>/dev/null; } || true
+            [ -f "$_qa" ] && { grep -v "^${label}|" "$_qa" > "${_qa}.tmp" 2>/dev/null && mv "${_qa}.tmp" "$_qa" 2>/dev/null || rm -f "${_qa}.tmp"; } || true
             log_success "Traffic counter reset for '${label}'"
         fi
     fi
@@ -2338,7 +2337,7 @@ secret_reset_traffic() {
         [ "$found" = "false" ] && { log_error "Secret '${label}' not found"; return 1; }
 
         for f in "$_ut" "$_snap" "$_qa"; do
-            [ -f "$f" ] && { grep -v "^${label}|" "$f" > "${f}.tmp" 2>/dev/null || true; mv "${f}.tmp" "$f" 2>/dev/null || true; }
+            [ -f "$f" ] && { grep -v "^${label}|" "$f" > "${f}.tmp" 2>/dev/null && mv "${f}.tmp" "$f" 2>/dev/null || rm -f "${f}.tmp"; } || true
         done
         log_success "Traffic counters reset for '${label}'"
     fi
@@ -6451,7 +6450,7 @@ while true; do
         # Auto-rotate: keep last 8000 lines if over 10000
         if [ -f "$_connlog" ]; then
             _lc=$(wc -l < "$_connlog" 2>/dev/null) || _lc=0
-            [ "$_lc" -gt 10000 ] && tail -n 8000 "$_connlog" > "${_connlog}.tmp" && mv "${_connlog}.tmp" "$_connlog"
+            [ "$_lc" -gt 10000 ] && { tail -n 8000 "$_connlog" > "${_connlog}.tmp" && mv "${_connlog}.tmp" "$_connlog" || rm -f "${_connlog}.tmp"; }
         fi
     fi
 
@@ -6511,8 +6510,7 @@ while true; do
                 fi
             done < "$SECRETS_FILE"
             [ -f "$_expiry_file" ] && grep -q ":${_today}" "$_expiry_file" 2>/dev/null && \
-                grep ":${_today}" "$_expiry_file" > "${_expiry_file}.tmp" 2>/dev/null && \
-                mv "${_expiry_file}.tmp" "$_expiry_file" 2>/dev/null || true
+                { grep ":${_today}" "$_expiry_file" > "${_expiry_file}.tmp" 2>/dev/null && mv "${_expiry_file}.tmp" "$_expiry_file" 2>/dev/null || rm -f "${_expiry_file}.tmp"; } || true
         fi
     fi
 
@@ -6866,7 +6864,7 @@ save_sync_status() {
             echo "${REPL_HOSTS[$i]}|${REPL_PORTS[$i]}|${REPL_LABELS[$i]}|${REPL_ENABLED[$i]}|${REPL_LAST_SYNC[$i]}|${REPL_STATUS[$i]}"
         done
     } > "$tmp"
-    mv "$tmp" "$REPLICATION_FILE"
+    mv "$tmp" "$REPLICATION_FILE" || { rm -f "$tmp"; return 1; }
 }
 
 log_sync() {
