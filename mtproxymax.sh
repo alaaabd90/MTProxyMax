@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.0.9"
+VERSION="1.1.0"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -9780,7 +9780,7 @@ show_main_menu() {
 
         draw_box_sep "$w"
         if [ -f "$_UPDATE_BADGE" ]; then
-            draw_box_line "  ${YELLOW}${BOLD}⬆  Update available — select [9] to update${NC}" "$w"
+            draw_box_line "  ${YELLOW}${BOLD}⬆  Update available — press [9] to install now${NC}" "$w"
             draw_box_sep "$w"
         fi
         draw_box_empty "$w"
@@ -9792,7 +9792,8 @@ show_main_menu() {
         draw_box_line "  ${BRIGHT_CYAN}[6]${NC}  Settings" "$w"
         draw_box_line "  ${BRIGHT_CYAN}[7]${NC}  Logs & Traffic" "$w"
         draw_box_line "  ${BRIGHT_CYAN}[8]${NC}  Info & Help" "$w"
-        draw_box_line "  ${BRIGHT_CYAN}[9]${NC}  About & Update" "$w"
+        draw_box_line "  ${BRIGHT_CYAN}[9]${NC}  Update" "$w"
+        draw_box_line "  ${BRIGHT_CYAN}[a]${NC}  About & Backup" "$w"
         draw_box_line "  ${BRIGHT_CYAN}[r]${NC}  Replication" "$w"
         draw_box_empty "$w"
         draw_box_line "  ${BRIGHT_RED}[u]${NC}  Uninstall" "$w"
@@ -9814,7 +9815,16 @@ show_main_menu() {
             6) show_settings_menu ;;
             7) show_traffic_menu ;;
             8) show_info_menu ;;
-            9) show_about ;;
+            9)
+                self_update || true
+                if [ "${_SCRIPT_NEEDS_REEXEC:-}" = "true" ]; then
+                    log_info "Restarting with updated script..."
+                    sleep 1
+                    exec "${INSTALL_DIR}/mtproxymax" menu
+                fi
+                press_any_key
+                ;;
+            a|A) show_about ;;
             r|R) show_replication_menu ;;
             u|U) uninstall; exit 0 ;;
             0|q|Q) echo ""; exit 0 ;;
