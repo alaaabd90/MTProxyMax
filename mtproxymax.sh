@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.1.5"
+VERSION="1.1.6"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -4294,7 +4294,7 @@ audit_log() {
     # Rotate if over 10000 lines
     local lines; lines=$(wc -l < "$_AUDIT_LOG" 2>/dev/null | tr -d ' ')
     [[ "$lines" =~ ^[0-9]+$ ]] && [ "$lines" -gt 10000 ] 2>/dev/null && \
-        tail -n 8000 "$_AUDIT_LOG" > "${_AUDIT_LOG}.tmp" && mv "${_AUDIT_LOG}.tmp" "$_AUDIT_LOG"
+        { tail -n 8000 "$_AUDIT_LOG" > "${_AUDIT_LOG}.tmp" && mv "${_AUDIT_LOG}.tmp" "$_AUDIT_LOG" || rm -f "${_AUDIT_LOG}.tmp"; }
 }
 
 show_history() {
