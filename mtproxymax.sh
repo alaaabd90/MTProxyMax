@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.1.2"
+VERSION="1.1.3"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -5435,6 +5435,7 @@ self_update() {
     # Try raw CDN first; fall back to GitHub API if CDN returns 404 (stale edge cache)
     if ! curl -fsSL --max-time 60 --max-filesize 5242880 -o "$_tmp" "$_url" 2>/dev/null; then
         log_info "CDN unavailable — trying GitHub API..."
+        : > "$_tmp"  # truncate any partial CDN write before API attempt
         curl -fsSL --max-time 60 --max-filesize 5242880 \
             -H "Accept: application/vnd.github.raw+json" \
             -o "$_tmp" "$_api_url" 2>/dev/null || true
