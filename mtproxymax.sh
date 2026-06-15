@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.1.0"
+VERSION="1.1.1"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -3717,15 +3717,14 @@ backup_restore_encrypted() {
     read -rs pw; echo ""
     mkdir -p "$BACKUP_DIR"
     local plain; plain=$(mktemp "${BACKUP_DIR}/.decrypt.XXXXXX.tar.gz")
+    trap "rm -f '$plain'" RETURN
     local _rc=0
     MTPMXPW="$pw" openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -in "$file" -out "$plain" -pass env:MTPMXPW 2>/dev/null || _rc=1
     unset pw MTPMXPW
     if [ "$_rc" -eq 0 ]; then
         migrate_import "$plain"
-        rm -f "$plain"
     else
         log_error "Decryption failed (wrong password?)"
-        rm -f "$plain"
         return 1
     fi
 }
@@ -5484,8 +5483,14 @@ self_update() {
             fi
         else
             log_info "Update found: v${_new_ver:-?} (installed: v${VERSION})"
-            echo -en "  ${BOLD}Update now? [y/N]:${NC} "
-            local _confirm; read -r _confirm
+            local _confirm
+            if [[ -t 0 ]]; then
+                echo -en "  ${BOLD}Update now? [y/N]:${NC} "
+                read -r _confirm
+            else
+                _confirm="y"
+                log_info "Non-interactive — auto-confirming update"
+            fi
             if [ "$_confirm" != "y" ] && [ "$_confirm" != "Y" ]; then
                 log_info "Skipped"
                 rm -f "$_tmp"
