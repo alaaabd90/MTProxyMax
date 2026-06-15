@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.1.1"
+VERSION="1.1.2"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -5424,6 +5424,7 @@ self_update() {
 
     local _script_updated=false
     local _url="https://raw.githubusercontent.com/${GITHUB_REPO}/main/mtproxymax.sh?nocache=$(date +%s)"
+    local _api_url="https://api.github.com/repos/${GITHUB_REPO}/contents/mtproxymax.sh"
 
     echo ""
     log_info "Checking for script updates..."
@@ -5431,7 +5432,15 @@ self_update() {
     local _tmp
     _tmp=$(_mktemp) || return 1
 
-    if curl -fsSL --max-time 60 --max-filesize 5242880 -o "$_tmp" "$_url" 2>/dev/null; then
+    # Try raw CDN first; fall back to GitHub API if CDN returns 404 (stale edge cache)
+    if ! curl -fsSL --max-time 60 --max-filesize 5242880 -o "$_tmp" "$_url" 2>/dev/null; then
+        log_info "CDN unavailable — trying GitHub API..."
+        curl -fsSL --max-time 60 --max-filesize 5242880 \
+            -H "Accept: application/vnd.github.raw+json" \
+            -o "$_tmp" "$_api_url" 2>/dev/null || true
+    fi
+
+    if [ -s "$_tmp" ]; then
         # Validate: bash syntax + sanity check
         if ! bash -n "$_tmp" 2>/dev/null; then
             log_error "Downloaded script has syntax errors — aborting"
