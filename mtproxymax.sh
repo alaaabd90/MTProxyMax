@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.1.4"
+VERSION="1.1.5"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -1277,14 +1277,14 @@ TOML_EOF
             _esc_tv=$(printf '%s' "$_tv_out" | sed 's/[\/&]/\\&/g')
             # Replace existing line if present; otherwise append to [general] section
             if grep -qE "^${_esc_tp} *=" "$tmp"; then
-                sed -i.bak "s/^${_esc_tp} *=.*/${_tp} = ${_tv_out}/" "$tmp" && rm -f "${tmp}.bak"
+                sed -i "s/^${_esc_tp} *=.*/${_tp} = ${_tv_out}/" "$tmp"
             else
                 # Append after [general] header if not elsewhere (safe fallback)
                 awk -v p="$_tp" -v v="$_tv_out" '
                     BEGIN{inserted=0}
                     {print}
                     /^\[general\]$/ && !inserted {print p " = " v; inserted=1}
-                ' "$tmp" > "${tmp}.new" && mv "${tmp}.new" "$tmp"
+                ' "$tmp" > "${tmp}.new" && mv "${tmp}.new" "$tmp" || { rm -f "${tmp}.new"; return 1; }
             fi
         done < "$_TUNE_FILE"
     fi
