@@ -1338,7 +1338,7 @@ traffic_tracking_setup() {
     local port="${PROXY_PORT:-443}"
 
     if [ "$_TRACKED_PORT" = "$port" ] && \
-       iptables -C "$IPTABLES_CHAIN" -p tcp --dport "$port" -m comment --comment "mtproxymax-in" 2>/dev/null; then
+       iptables -C "$IPTABLES_CHAIN" -p tcp --dport "$port" -m comment --comment "mtproxymax-in" >/dev/null 2>&1; then
         return 0
     fi
 
@@ -1346,9 +1346,9 @@ traffic_tracking_setup() {
     iptables -F "$IPTABLES_CHAIN" 2>/dev/null
     iptables -A "$IPTABLES_CHAIN" -p tcp --dport "$port" -m comment --comment "mtproxymax-in" 2>/dev/null
     iptables -A "$IPTABLES_CHAIN" -p tcp --sport "$port" -m comment --comment "mtproxymax-out" 2>/dev/null
-    iptables -C INPUT -j "$IPTABLES_CHAIN" -m comment --comment "mtproxymax" 2>/dev/null || \
+    iptables -C INPUT -j "$IPTABLES_CHAIN" -m comment --comment "mtproxymax" >/dev/null 2>&1 || \
         iptables -I INPUT -j "$IPTABLES_CHAIN" -m comment --comment "mtproxymax" 2>/dev/null
-    iptables -C OUTPUT -j "$IPTABLES_CHAIN" -m comment --comment "mtproxymax" 2>/dev/null || \
+    iptables -C OUTPUT -j "$IPTABLES_CHAIN" -m comment --comment "mtproxymax" >/dev/null 2>&1 || \
         iptables -I OUTPUT -j "$IPTABLES_CHAIN" -m comment --comment "mtproxymax" 2>/dev/null
 
     _TRACKED_PORT="$port"
@@ -1390,7 +1390,7 @@ get_proxy_stats() {
     # Fallback: iptables
     local port="${PROXY_PORT:-443}"
     if [ "$_TRACKED_PORT" != "$port" ] || \
-       ! iptables -C "$IPTABLES_CHAIN" -p tcp --dport "$port" -m comment --comment "mtproxymax-in" 2>/dev/null; then
+       ! iptables -C "$IPTABLES_CHAIN" -p tcp --dport "$port" -m comment --comment "mtproxymax-in" >/dev/null 2>&1; then
         traffic_tracking_setup
     fi
 
@@ -3467,7 +3467,7 @@ maintenance_on() {
     check_root
     local port="${PROXY_PORT:-443}"
     # Idempotent: skip if rule already exists
-    if ! iptables -C INPUT -p tcp --dport "$port" --syn -j REJECT --reject-with tcp-reset -m comment --comment "mtproxymax-maintenance" 2>/dev/null; then
+    if ! iptables -C INPUT -p tcp --dport "$port" --syn -j REJECT --reject-with tcp-reset -m comment --comment "mtproxymax-maintenance" >/dev/null 2>&1; then
         iptables -I INPUT -p tcp --dport "$port" --syn -j REJECT --reject-with tcp-reset -m comment --comment "mtproxymax-maintenance" 2>/dev/null
     fi
     touch "$MAINTENANCE_FILE"
@@ -3479,14 +3479,14 @@ maintenance_on() {
 maintenance_reapply() {
     [ -f "$MAINTENANCE_FILE" ] || return 0
     local port="${PROXY_PORT:-443}"
-    iptables -C INPUT -p tcp --dport "$port" --syn -j REJECT --reject-with tcp-reset -m comment --comment "mtproxymax-maintenance" 2>/dev/null || \
+    iptables -C INPUT -p tcp --dport "$port" --syn -j REJECT --reject-with tcp-reset -m comment --comment "mtproxymax-maintenance" >/dev/null 2>&1 || \
     iptables -I INPUT -p tcp --dport "$port" --syn -j REJECT --reject-with tcp-reset -m comment --comment "mtproxymax-maintenance" 2>/dev/null
 }
 
 maintenance_off() {
     check_root
     # Remove all rules tagged with our comment
-    while iptables -C INPUT -p tcp --dport "${PROXY_PORT:-443}" --syn -j REJECT --reject-with tcp-reset -m comment --comment "mtproxymax-maintenance" 2>/dev/null; do
+    while iptables -C INPUT -p tcp --dport "${PROXY_PORT:-443}" --syn -j REJECT --reject-with tcp-reset -m comment --comment "mtproxymax-maintenance" >/dev/null 2>&1; do
         iptables -D INPUT -p tcp --dport "${PROXY_PORT:-443}" --syn -j REJECT --reject-with tcp-reset -m comment --comment "mtproxymax-maintenance" 2>/dev/null
     done
     rm -f "$MAINTENANCE_FILE"
@@ -5098,7 +5098,7 @@ _apply_country_rules() {
         # Whitelist: ACCEPT matching countries
         if ! iptables -C INPUT -m set --match-set "$setname" src \
             -p tcp --dport "$PROXY_PORT" \
-            -m comment --comment "$GEOBLOCK_COMMENT" -j ACCEPT 2>/dev/null; then
+            -m comment --comment "$GEOBLOCK_COMMENT" -j ACCEPT >/dev/null 2>&1; then
             iptables -I INPUT -m set --match-set "$setname" src \
                 -p tcp --dport "$PROXY_PORT" \
                 -m comment --comment "$GEOBLOCK_COMMENT" -j ACCEPT
@@ -5107,7 +5107,7 @@ _apply_country_rules() {
         # Blacklist: DROP matching countries
         if ! iptables -C INPUT -m set --match-set "$setname" src \
             -p tcp --dport "$PROXY_PORT" \
-            -m comment --comment "$GEOBLOCK_COMMENT" -j DROP 2>/dev/null; then
+            -m comment --comment "$GEOBLOCK_COMMENT" -j DROP >/dev/null 2>&1; then
             iptables -I INPUT -m set --match-set "$setname" src \
                 -p tcp --dport "$PROXY_PORT" \
                 -m comment --comment "$GEOBLOCK_COMMENT" -j DROP
@@ -5145,7 +5145,7 @@ _ensure_default_drop() {
     [ "$GEOBLOCK_MODE" = "whitelist" ] || return 0
     [ -n "$BLOCKLIST_COUNTRIES" ] || return 0
     if ! iptables -C INPUT -p tcp --dport "$PROXY_PORT" \
-        -m comment --comment "${GEOBLOCK_COMMENT}-default" -j DROP 2>/dev/null; then
+        -m comment --comment "${GEOBLOCK_COMMENT}-default" -j DROP >/dev/null 2>&1; then
         iptables -A INPUT -p tcp --dport "$PROXY_PORT" \
             -m comment --comment "${GEOBLOCK_COMMENT}-default" -j DROP
     fi
