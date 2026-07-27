@@ -11,7 +11,7 @@ set -eo pipefail
 export LC_NUMERIC=C
 
 # ── Section 1: Initialization ────────────────────────────────
-VERSION="1.1.8"
+VERSION="1.1.9"
 SCRIPT_NAME="mtproxymax"
 INSTALL_DIR="/opt/mtproxymax"
 CONFIG_DIR="${INSTALL_DIR}/mtproxy"
@@ -7610,12 +7610,44 @@ run_installer() {
     save_settings
     save_secrets
 
-    # Copy script to install dir
+    # Copy script to install dir. BASH_SOURCE[0] is unreliable here: the
+    # documented quick-install methods run this script via `bash <(curl ...)`
+    # or `curl ... | bash -s -- install`, and in both cases BASH_SOURCE[0]
+    # points at a process-substitution/pipe pseudo-path (e.g. /dev/fd/63),
+    # not a real persistent file — so a plain `cp` silently copied nothing,
+    # leaving /usr/local/bin/mtproxymax a dangling symlink and every CLI
+    # command ("mtproxymax", start/stop/restart/status/update/version)
+    # failing with "command not found" right after a "successful" install.
     local script_source="${BASH_SOURCE[0]}"
-    if [ -f "$script_source" ]; then
-        cp "$script_source" "${INSTALL_DIR}/mtproxymax"
-        chmod +x "${INSTALL_DIR}/mtproxymax"
+    local _self_installed=false
+    case "$script_source" in
+        /dev/fd/*|/proc/self/fd/*|"") ;;
+        *)
+            if [ -f "$script_source" ] && [ -s "$script_source" ]; then
+                cp "$script_source" "${INSTALL_DIR}/mtproxymax" && _self_installed=true
+            fi
+            ;;
+    esac
+    if [ "$_self_installed" != true ]; then
+        log_info "Fetching mtproxymax.sh from GitHub..."
+        local _self_tmp
+        _self_tmp=$(_mktemp) || { log_error "Failed to create temp file"; exit 1; }
+        if curl -fsSL --max-time 60 --max-filesize 5242880 \
+            "https://raw.githubusercontent.com/${GITHUB_REPO}/main/mtproxymax.sh?nocache=$(date +%s)" \
+            -o "$_self_tmp" \
+            && bash -n "$_self_tmp" 2>/dev/null \
+            && grep -q "GITHUB_REPO=\"alaaabd90/MTProxyMax\"" "$_self_tmp" \
+            && [ "$(wc -c < "$_self_tmp")" -ge 10000 ]; then
+            cp "$_self_tmp" "${INSTALL_DIR}/mtproxymax"
+            _self_installed=true
+        fi
+        rm -f "$_self_tmp"
     fi
+    if [ "$_self_installed" != true ]; then
+        log_error "Failed to install the mtproxymax script to ${INSTALL_DIR} — aborting"
+        exit 1
+    fi
+    chmod +x "${INSTALL_DIR}/mtproxymax"
 
     # Create symlink
     ln -sf "${INSTALL_DIR}/mtproxymax" /usr/local/bin/mtproxymax
